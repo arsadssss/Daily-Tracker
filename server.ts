@@ -301,23 +301,56 @@ app.put("/api/daily_entries/:id", async (req, res) => {
   try {
     const db = getDb();
     const id = Number(req.params.id);
-    const { date, startTime, endTime, onlineHours, rides, earnings, fuelExpense, foodTeaExpense, otherExpense, notes } = req.body;
+    const { 
+      date, 
+      startTime, 
+      endTime, 
+      onlineHours, 
+      rides, 
+      tripsCount,
+      earnings, 
+      fuelExpense, 
+      foodTeaExpense, 
+      otherExpense, 
+      onlinePayment,
+      cashPayment,
+      notes 
+    } = req.body;
+    
     const [updated] = await db.update(schema.dailyEntries)
       .set({
         date,
-        startTime,
-        endTime,
+        startTime: startTime !== undefined ? (startTime || null) : undefined,
+        endTime: endTime !== undefined ? (endTime || null) : undefined,
         onlineHours: onlineHours !== undefined ? Number(onlineHours) : undefined,
-        rides: rides !== undefined ? Number(rides) : undefined,
+        rides: rides !== undefined ? Number(rides) : (tripsCount !== undefined ? Number(tripsCount) : undefined),
         earnings: earnings !== undefined ? Number(earnings) : undefined,
         fuelExpense: fuelExpense !== undefined ? Number(fuelExpense) : undefined,
         foodTeaExpense: foodTeaExpense !== undefined ? Number(foodTeaExpense) : undefined,
         otherExpense: otherExpense !== undefined ? Number(otherExpense) : undefined,
-        notes
+        onlinePayment: onlinePayment !== undefined ? Number(onlinePayment) : undefined,
+        cashPayment: cashPayment !== undefined ? Number(cashPayment) : undefined,
+        notes: notes !== undefined ? (notes || null) : undefined
       })
       .where(eq(schema.dailyEntries.id, id))
       .returning();
-    res.json(updated);
+
+    if (!updated) {
+      return res.status(404).json({ error: "Entry not found" });
+    }
+
+    res.json({
+      ...updated,
+      id: String(updated.id),
+      earnings: Number(updated.earnings),
+      tripsCount: Number(updated.rides), // Map 'rides' back to 'tripsCount'
+      onlineHours: Number(updated.onlineHours),
+      fuelExpense: Number(updated.fuelExpense),
+      foodTeaExpense: Number(updated.foodTeaExpense),
+      otherExpense: Number(updated.otherExpense),
+      cashPayment: Number(updated.cashPayment),
+      onlinePayment: Number(updated.onlinePayment),
+    });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }

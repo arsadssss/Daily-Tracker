@@ -18,7 +18,9 @@ import {
   Percent,
   Sparkles,
   Award,
-  CircleAlert
+  CircleAlert,
+  Edit2,
+  Trash2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -34,10 +36,85 @@ interface DashboardProps {
   expenses: Expense[];
   emis: EMI[];
   profile: RiderProfile;
+  onDeleteEntry: (id: string) => Promise<void>;
+  onUpdateEntry: (id: string, entry: Partial<DailyEntry>) => Promise<void>;
 }
 
-export default function Dashboard({ entries, expenses, emis, profile }: DashboardProps) {
+export default function Dashboard({ 
+  entries, 
+  expenses, 
+  emis, 
+  profile,
+  onDeleteEntry,
+  onUpdateEntry
+}: DashboardProps) {
   const [selectedEntry, setSelectedEntry] = useState<DailyEntry | null>(null);
+  
+  // Edit Form State for selectedEntry
+  const [isEditing, setIsEditing] = useState<boolean>(false);
+  const [editDate, setEditDate] = useState<string>('');
+  const [editEarnings, setEditEarnings] = useState<number>(1000);
+  const [editTrips, setEditTrips] = useState<number>(18);
+  const [editHours, setEditHours] = useState<number>(8);
+  const [editFuel, setEditFuel] = useState<number>(300);
+  const [editFood, setEditFood] = useState<number>(60);
+  const [editOther, setEditOther] = useState<number>(0);
+  const [editNotes, setEditNotes] = useState<string>('');
+  const [editStartTime, setEditStartTime] = useState<string>('08:00');
+  const [editEndTime, setEditEndTime] = useState<string>('16:00');
+  const [editOnlinePercent, setEditOnlinePercent] = useState<number>(70);
+  const [confirmDelete, setConfirmDelete] = useState<boolean>(false);
+
+  const startEdit = (entry: DailyEntry) => {
+    setEditDate(entry.date);
+    setEditEarnings(entry.earnings);
+    setEditTrips(entry.tripsCount);
+    setEditHours(entry.onlineHours);
+    setEditFuel(entry.fuelExpense);
+    setEditFood(entry.foodTeaExpense);
+    setEditOther(entry.otherExpense);
+    setEditNotes(entry.notes || '');
+    setEditStartTime(entry.startTime || '08:00');
+    setEditEndTime(entry.endTime || '16:00');
+    
+    const pct = entry.earnings > 0 ? Math.round((entry.onlinePayment / entry.earnings) * 100) : 70;
+    setEditOnlinePercent(pct);
+    setIsEditing(true);
+    setConfirmDelete(false);
+  };
+
+  const handleUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedEntry) return;
+
+    const computedOnline = Math.round((editEarnings * editOnlinePercent) / 100);
+    const computedCash = editEarnings - computedOnline;
+
+    await onUpdateEntry(selectedEntry.id, {
+      date: editDate,
+      earnings: editEarnings,
+      tripsCount: editTrips,
+      onlineHours: editHours,
+      fuelExpense: editFuel,
+      foodTeaExpense: editFood,
+      otherExpense: editOther,
+      notes: editNotes.trim() || undefined,
+      startTime: editStartTime,
+      endTime: editEndTime,
+      onlinePayment: computedOnline,
+      cashPayment: computedCash
+    });
+
+    setIsEditing(false);
+    setSelectedEntry(null);
+  };
+
+  const handleDelete = async () => {
+    if (!selectedEntry) return;
+    await onDeleteEntry(selectedEntry.id);
+    setSelectedEntry(null);
+    setConfirmDelete(false);
+  };
   
   // Segment selector for active date metrics: 'current' (16-Jun-2026/today) vs 'latest' (latest day with logs)
   const [activeDateMode, setActiveDateMode] = useState<'today' | 'latest'>('latest');
@@ -497,7 +574,7 @@ export default function Dashboard({ entries, expenses, emis, profile }: Dashboar
         )}
       </div>
 
-      {/* Modal - Daily Entry Detail View */}
+      {/* Modal - Daily Entry Detail/Edit View */}
       <AnimatePresence>
         {selectedEntry && (
           <div className="fixed inset-0 z-50 flex items-end justify-center px-4 bg-black/85 backdrop-blur-sm">
@@ -505,96 +582,321 @@ export default function Dashboard({ entries, expenses, emis, profile }: Dashboar
               initial={{ y: 100, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 100, opacity: 0 }}
-              className="bg-zinc-950 w-full max-w-md rounded-t-[32px] border-t border-x border-zinc-805 p-5 pb-12 shadow-[0_-10px_40px_rgba(0,0,0,0.9)] max-h-[85vh] overflow-y-auto"
+              className="bg-zinc-950 w-full max-w-md rounded-t-[32px] border-t border-x border-zinc-805 p-5 pb-12 shadow-[0_-10px_40px_rgba(0,0,0,0.9)] max-h-[90vh] overflow-y-auto"
             >
-              <div className="flex justify-between items-start mb-5">
-                <div>
-                  <span className="text-zinc-500 font-mono text-[10px] uppercase tracking-wider">LOG DETAIL SPECIFICATION</span>
-                  <h3 className="text-lg font-bold font-display text-white mt-0.5">
-                    {new Date(selectedEntry.date).toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-                  </h3>
-                </div>
-                <button 
-                  onClick={() => setSelectedEntry(null)}
-                  className="w-8 h-8 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-400 font-bold hover:text-white"
-                >
-                  ✕
-                </button>
-              </div>
-
-              {/* Earnings Split */}
-              <div className="bg-zinc-900 rounded-3xl p-4 border border-zinc-800 mb-4">
-                <span className="text-zinc-500 font-mono text-[9px] tracking-wider uppercase">EARNINGS CONFIGURATION</span>
-                <p className="text-2xl font-extrabold font-display text-cred-neon mt-1">₹{selectedEntry.earnings}</p>
-                <div className="grid grid-cols-2 gap-4 mt-3 pt-3 border-t border-zinc-800/80">
-                  <div>
-                    <span className="text-zinc-500 text-xs">Online Paid (GPay/Paytm)</span>
-                    <p className="text-white font-bold font-display mt-0.5">₹{selectedEntry.onlinePayment}</p>
+              {isEditing ? (
+                <form onSubmit={handleUpdate} className="space-y-4">
+                  <div className="flex justify-between items-center pb-2 border-b border-zinc-800">
+                    <div>
+                      <span className="text-[10px] font-mono tracking-wider text-cred-neon uppercase font-bold">REVENUE JOURNAL EDITOR</span>
+                      <h3 className="text-sm font-bold font-display text-white mt-0.5">
+                        {editDate ? new Date(editDate).toLocaleDateString('en-IN', { month: 'long', day: 'numeric', year: 'numeric' }) : 'Edit Entry'}
+                      </h3>
+                    </div>
+                    <button 
+                      type="button" 
+                      onClick={() => setIsEditing(false)}
+                      className="w-8 h-8 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-400 font-bold hover:text-white text-xs"
+                    >
+                      ✕
+                    </button>
                   </div>
+
+                  {/* Date Input */}
                   <div>
-                    <span className="text-zinc-500 text-xs">Cash Paid</span>
-                    <p className="text-white font-bold font-display mt-0.5">₹{selectedEntry.cashPayment}</p>
+                    <label className="block text-[10px] font-mono text-zinc-500 uppercase tracking-widest mb-1.5">DATE OF SERVICE</label>
+                    <input 
+                      type="date"
+                      required
+                      value={editDate}
+                      onChange={(e) => setEditDate(e.target.value)}
+                      className="w-full bg-zinc-900 border border-zinc-800 text-white rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-cred-neon font-mono"
+                      max={new Date().toISOString().split('T')[0]}
+                    />
                   </div>
-                </div>
-              </div>
 
-              {/* Expenses Split */}
-              <div className="grid grid-cols-3 gap-3 mb-4">
-                <div className="bg-zinc-900/50 border border-zinc-800/80 rounded-2xl p-3 text-center">
-                  <Fuel className="w-4 h-4 mx-auto text-amber-500 mb-1" />
-                  <span className="text-zinc-500 text-[9px] uppercase font-mono">Petrol</span>
-                  <p className="text-white font-semibold font-display mt-0.5 font-mono">₹{selectedEntry.fuelExpense}</p>
-                </div>
-                <div className="bg-zinc-900/50 border border-zinc-800/80 rounded-2xl p-3 text-center">
-                  <Coffee className="w-4 h-4 mx-auto text-orange-400 mb-1" />
-                  <span className="text-zinc-500 text-[9px] uppercase font-mono">Tea/Food</span>
-                  <p className="text-white font-semibold font-display mt-0.5 font-mono">₹{selectedEntry.foodTeaExpense}</p>
-                </div>
-                <div className="bg-zinc-900/50 border border-zinc-800/80 rounded-2xl p-3 text-center">
-                  <Wallet className="w-4 h-4 mx-auto text-zinc-400 mb-1" />
-                  <span className="text-zinc-500 text-[9px] uppercase font-mono">Other</span>
-                  <p className="text-white font-semibold font-display mt-0.5 font-mono">₹{selectedEntry.otherExpense}</p>
-                </div>
-              </div>
+                  {/* Times Input */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[10px] font-mono text-zinc-500 uppercase tracking-widest mb-1.5">START TIME</label>
+                      <input 
+                        type="time"
+                        required
+                        value={editStartTime}
+                        onChange={(e) => setEditStartTime(e.target.value)}
+                        className="w-full bg-zinc-900 border border-zinc-800 text-white rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-cred-neon"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-mono text-zinc-500 uppercase tracking-widest mb-1.5">END TIME</label>
+                      <input 
+                        type="time"
+                        required
+                        value={editEndTime}
+                        onChange={(e) => setEditEndTime(e.target.value)}
+                        className="w-full bg-zinc-900 border border-zinc-800 text-white rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-cred-neon"
+                      />
+                    </div>
+                  </div>
 
-              {/* Ride Efficiency Metrics */}
-              <div className="bg-white/5 rounded-2xl p-3.5 border border-white/5 space-y-2 mb-4">
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-zinc-400">Total Rides Done</span>
-                  <span className="text-white font-semibold font-mono">{selectedEntry.tripsCount} trips</span>
-                </div>
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-zinc-400">Active Online Hours</span>
-                  <span className="text-white font-semibold font-mono">{selectedEntry.onlineHours} hours</span>
-                </div>
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-zinc-400">Average Rate / Hour</span>
-                  <span className="text-white font-semibold font-mono">₹{selectedEntry.onlineHours > 0 ? Math.round(selectedEntry.earnings / selectedEntry.onlineHours) : 0} / hr</span>
-                </div>
-                <div className="flex justify-between items-center text-xs pt-1 border-t border-zinc-800/50">
-                  <span className="text-zinc-400">Net Profit</span>
-                  <span className="text-emerald-400 font-semibold font-mono">
-                    ₹{selectedEntry.earnings - (selectedEntry.fuelExpense + selectedEntry.foodTeaExpense + selectedEntry.otherExpense)}
-                  </span>
-                </div>
-              </div>
+                  {/* Gross Income Input */}
+                  <div>
+                    <label className="block text-[10px] font-mono text-zinc-500 uppercase tracking-widest mb-1.5">GROSS REVENUE RECEIVED (₹)</label>
+                    <input 
+                      type="number"
+                      required
+                      min={0}
+                      value={editEarnings}
+                      onChange={(e) => setEditEarnings(Number(e.target.value))}
+                      className="w-full bg-zinc-900 border border-zinc-800 text-white font-display font-bold text-xl rounded-xl px-3 py-2.5 focus:outline-none focus:border-cred-neon"
+                    />
+                  </div>
 
-              {/* Notes */}
-              {selectedEntry.notes && (
-                <div className="mb-4">
-                  <span className="text-zinc-500 font-mono text-[9px] tracking-wider uppercase">RIDER MEMO / NOTES</span>
-                  <p className="text-xs text-zinc-300 bg-zinc-900/40 p-3 border border-zinc-850 rounded-xl mt-1 select-text">
-                    "{selectedEntry.notes}"
-                  </p>
-                </div>
+                  {/* Online Split Slider */}
+                  <div className="bg-zinc-900/50 border border-zinc-850 p-3 rounded-2xl space-y-2">
+                    <div className="flex justify-between items-center text-[9px] font-mono text-zinc-500 tracking-wider">
+                      <span>UPI SHARE: {editOnlinePercent}%</span>
+                      <span>CASH SHARE: {100 - editOnlinePercent}%</span>
+                    </div>
+                    <input 
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={editOnlinePercent}
+                      onChange={(e) => setEditOnlinePercent(Number(e.target.value))}
+                      className="w-full h-1 bg-zinc-800 rounded appearance-none cursor-pointer accent-cred-neon"
+                    />
+                    <div className="flex justify-between text-[11px] font-mono">
+                      <span className="text-zinc-400">Online UPI: <strong className="text-white">₹{Math.round((editEarnings * editOnlinePercent) / 100)}</strong></span>
+                      <span className="text-zinc-400">Cash: <strong className="text-white">₹{editEarnings - Math.round((editEarnings * editOnlinePercent) / 100)}</strong></span>
+                    </div>
+                  </div>
+
+                  {/* Rides and Hours */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[10px] font-mono text-zinc-500 uppercase tracking-widest mb-1.5">TRIPS COUNT</label>
+                      <input 
+                        type="number"
+                        required
+                        min={1}
+                        value={editTrips}
+                        onChange={(e) => setEditTrips(Number(e.target.value))}
+                        className="w-full bg-zinc-900 border border-zinc-800 text-white rounded-xl px-3 py-2 text-xs font-mono font-bold"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-mono text-zinc-500 uppercase tracking-widest mb-1.5">ONLINE HOURS</label>
+                      <input 
+                        type="number"
+                        required
+                        step="0.5"
+                        min={0.5}
+                        value={editHours}
+                        onChange={(e) => setEditHours(Number(e.target.value))}
+                        className="w-full bg-zinc-900 border border-zinc-800 text-white rounded-xl px-3 py-2 text-xs font-mono font-bold"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Expenses Inputs */}
+                  <div className="bg-zinc-900/40 p-3.5 rounded-2xl border border-zinc-850 space-y-3">
+                    <span className="block text-[10px] font-mono text-zinc-500 tracking-wider uppercase font-semibold">INTEGRATED DAY EXPENDITURES (₹)</span>
+                    <div className="grid grid-cols-3 gap-2.5">
+                      <div>
+                        <span className="block text-[9px] text-zinc-500 font-mono mb-1 text-center">Petrol</span>
+                        <input 
+                          type="number"
+                          min={0}
+                          value={editFuel}
+                          onChange={(e) => setEditFuel(Number(e.target.value))}
+                          className="w-full bg-zinc-950 border border-zinc-800 text-white rounded-xl px-2 py-1.5 text-xs text-center font-mono"
+                        />
+                      </div>
+                      <div>
+                        <span className="block text-[9px] text-zinc-500 font-mono mb-1 text-center font-sans">Tea/Snacks</span>
+                        <input 
+                          type="number"
+                          min={0}
+                          value={editFood}
+                          onChange={(e) => setEditFood(Number(e.target.value))}
+                          className="w-full bg-zinc-950 border border-zinc-800 text-white rounded-xl px-2 py-1.5 text-xs text-center font-mono"
+                        />
+                      </div>
+                      <div>
+                        <span className="block text-[9px] text-zinc-500 font-mono mb-1 text-center">Other</span>
+                        <input 
+                          type="number"
+                          min={0}
+                          value={editOther}
+                          onChange={(e) => setEditOther(Number(e.target.value))}
+                          className="w-full bg-zinc-950 border border-zinc-800 text-white rounded-xl px-2 py-1.5 text-xs text-center font-mono"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Notes Remarks */}
+                  <div>
+                    <label className="block text-[10px] font-mono text-zinc-500 uppercase tracking-widest mb-1.5">NOTES / MEMORANDUMS</label>
+                    <input 
+                      type="text"
+                      value={editNotes}
+                      onChange={(e) => setEditNotes(e.target.value)}
+                      placeholder="Remarks about weather, traffic or bonuses..."
+                      className="w-full bg-zinc-900 border border-zinc-800 text-zinc-200 rounded-xl px-3 py-2 text-xs"
+                    />
+                  </div>
+
+                  {/* Actions footer */}
+                  <div className="flex gap-2.5 pt-2">
+                    <button 
+                      type="submit"
+                      className="flex-1 bg-cred-neon text-black font-bold font-display py-3 rounded-full hover:bg-emerald-400 transition shadow-[0_4px_14px_rgba(0,255,102,0.25)] text-xs uppercase"
+                    >
+                      Save Journal Entry
+                    </button>
+                    <button 
+                      type="button" 
+                      onClick={() => setIsEditing(false)}
+                      className="px-5 bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-zinc-400 font-semibold rounded-full transition text-xs"
+                    >
+                      Back
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <>
+                  <div className="flex justify-between items-start mb-5">
+                    <div>
+                      <span className="text-zinc-500 font-mono text-[10px] uppercase tracking-wider">LOG DETAIL SPECIFICATION</span>
+                      <h3 className="text-lg font-bold font-display text-white mt-0.5">
+                        {new Date(selectedEntry.date).toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                      </h3>
+                    </div>
+                    <button 
+                      onClick={() => setSelectedEntry(null)}
+                      className="w-8 h-8 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-400 font-bold hover:text-white"
+                    >
+                      ✕
+                    </button>
+                  </div>
+
+                  {/* Earnings Split */}
+                  <div className="bg-zinc-900 rounded-3xl p-4 border border-zinc-800 mb-4">
+                    <span className="text-zinc-500 font-mono text-[9px] tracking-wider uppercase">EARNINGS CONFIGURATION</span>
+                    <p className="text-2xl font-extrabold font-display text-cred-neon mt-1">₹{selectedEntry.earnings}</p>
+                    <div className="grid grid-cols-2 gap-4 mt-3 pt-3 border-t border-zinc-800/80">
+                      <div>
+                        <span className="text-zinc-500 text-xs">Online Paid (GPay/Paytm)</span>
+                        <p className="text-white font-bold font-display mt-0.5">₹{selectedEntry.onlinePayment}</p>
+                      </div>
+                      <div>
+                        <span className="text-zinc-500 text-xs">Cash Paid</span>
+                        <p className="text-white font-bold font-display mt-0.5">₹{selectedEntry.cashPayment}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Expenses Split */}
+                  <div className="grid grid-cols-3 gap-3 mb-4">
+                    <div className="bg-zinc-900/50 border border-zinc-800/80 rounded-2xl p-3 text-center">
+                      <Fuel className="w-4 h-4 mx-auto text-amber-500 mb-1" />
+                      <span className="text-zinc-500 text-[9px] uppercase font-mono">Petrol</span>
+                      <p className="text-white font-semibold font-display mt-0.5 font-mono font-bold">₹{selectedEntry.fuelExpense}</p>
+                    </div>
+                    <div className="bg-zinc-900/50 border border-zinc-800/80 rounded-2xl p-3 text-center">
+                      <Coffee className="w-4 h-4 mx-auto text-orange-400 mb-1" />
+                      <span className="text-zinc-500 text-[9px] uppercase font-mono">Tea/Food</span>
+                      <p className="text-white font-semibold font-display mt-0.5 font-mono font-bold">₹{selectedEntry.foodTeaExpense}</p>
+                    </div>
+                    <div className="bg-zinc-900/50 border border-zinc-800/80 rounded-2xl p-3 text-center">
+                      <Wallet className="w-4 h-4 mx-auto text-zinc-400 mb-1" />
+                      <span className="text-zinc-500 text-[9px] uppercase font-mono">Other</span>
+                      <p className="text-white font-semibold font-display mt-0.5 font-mono font-bold">₹{selectedEntry.otherExpense}</p>
+                    </div>
+                  </div>
+
+                  {/* Ride Efficiency Metrics */}
+                  <div className="bg-white/5 rounded-2xl p-3.5 border border-white/5 space-y-2 mb-4">
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-zinc-400">Total Rides Done</span>
+                      <span className="text-white font-semibold font-mono">{selectedEntry.tripsCount} trips</span>
+                    </div>
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-zinc-400">Active Online Hours</span>
+                      <span className="text-white font-semibold font-mono">{selectedEntry.onlineHours} hours</span>
+                    </div>
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-zinc-400">Average Rate / Hour</span>
+                      <span className="text-white font-semibold font-mono">₹{selectedEntry.onlineHours > 0 ? Math.round(selectedEntry.earnings / selectedEntry.onlineHours) : 0} / hr</span>
+                    </div>
+                    <div className="flex justify-between items-center text-xs pt-1 border-t border-zinc-800/50">
+                      <span className="text-zinc-400">Net Profit</span>
+                      <span className="text-emerald-400 font-semibold font-mono">
+                        ₹{selectedEntry.earnings - (selectedEntry.fuelExpense + selectedEntry.foodTeaExpense + selectedEntry.otherExpense)}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Notes */}
+                  {selectedEntry.notes && (
+                    <div className="mb-4">
+                      <span className="text-zinc-500 font-mono text-[9px] tracking-wider uppercase">RIDER MEMO / NOTES</span>
+                      <p className="text-xs text-zinc-300 bg-zinc-900/40 p-3 border border-zinc-850 rounded-xl mt-1 select-text">
+                        "{selectedEntry.notes}"
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Modify or Delete Actions (Added as requested) */}
+                  <div className="grid grid-cols-2 gap-3 mb-4 mt-2">
+                    <button 
+                      type="button"
+                      onClick={() => startEdit(selectedEntry)}
+                      className="flex items-center justify-center gap-1 bg-zinc-900 border border-zinc-800 hover:border-zinc-750 text-white font-semibold py-2.5 rounded-xl transition text-xs"
+                    >
+                      <Edit2 className="w-3.5 h-3.5 text-cred-neon" />
+                      Edit Log
+                    </button>
+
+                    {confirmDelete ? (
+                      <div className="flex gap-1.5">
+                        <button 
+                          type="button"
+                          onClick={handleDelete}
+                          className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 rounded-xl transition text-[11px]"
+                        >
+                          Confirm
+                        </button>
+                        <button 
+                          type="button"
+                          onClick={() => setConfirmDelete(false)}
+                          className="px-3 bg-zinc-900 border border-zinc-850 text-zinc-400 rounded-xl text-xs"
+                        >
+                          No
+                        </button>
+                      </div>
+                    ) : (
+                      <button 
+                        type="button"
+                        onClick={() => setConfirmDelete(true)}
+                        className="flex items-center justify-center gap-1 bg-zinc-900 border border-zinc-800 hover:border-zinc-750 text-red-500 font-semibold py-2.5 rounded-xl transition text-xs"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        Delete Log
+                      </button>
+                    )}
+                  </div>
+
+                  <button 
+                    onClick={() => setSelectedEntry(null)}
+                    className="w-full bg-white text-black font-semibold font-display py-3 rounded-full hover:bg-zinc-200 transition-colors text-sm"
+                  >
+                    Close Summary
+                  </button>
+                </>
               )}
-
-              <button 
-                onClick={() => setSelectedEntry(null)}
-                className="w-full bg-white text-black font-semibold font-display py-3 rounded-full hover:bg-zinc-200 transition-colors text-sm"
-              >
-                Close Summary
-              </button>
             </motion.div>
           </div>
         )}

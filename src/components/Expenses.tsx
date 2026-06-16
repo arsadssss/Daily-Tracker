@@ -13,7 +13,8 @@ import {
   AlertOctagon, 
   LayoutGrid,
   TrendingDown,
-  X
+  X,
+  Edit2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -21,10 +22,12 @@ interface ExpensesProps {
   expenses: Expense[];
   onAddExpense: (expense: Omit<Expense, 'id'>) => void;
   onDeleteExpense: (id: string) => void;
+  onUpdateExpense: (id: string, expense: Partial<Expense>) => void;
 }
 
-export default function Expenses({ expenses, onAddExpense, onDeleteExpense }: ExpensesProps) {
+export default function Expenses({ expenses, onAddExpense, onDeleteExpense, onUpdateExpense }: ExpensesProps) {
   const [showAddForm, setShowAddForm] = useState<boolean>(false);
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [filterCategory, setFilterCategory] = useState<string>('All');
   
   // Form input states
@@ -43,16 +46,44 @@ export default function Expenses({ expenses, onAddExpense, onDeleteExpense }: Ex
     { name: 'Other', icon: LayoutGrid, color: '#6b7280', bg: 'rgba(107, 114, 128, 0.15)' },
   ];
 
+  const handleOpenEdit = (exp: Expense) => {
+    setEditingExpense(exp);
+    setCategory(exp.category);
+    setAmount(exp.amount);
+    setDate(exp.date);
+    setDescription(exp.description || '');
+    setShowAddForm(true);
+  };
+
+  const handleOpenAdd = () => {
+    setEditingExpense(null);
+    setCategory('Fuel');
+    setAmount(300);
+    setDate(new Date().toISOString().split('T')[0]);
+    setDescription('');
+    setShowAddForm(true);
+  };
+
   const handleAddSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (amount <= 0) return;
 
-    onAddExpense({
-      category,
-      amount,
-      date,
-      description: description.trim() || undefined
-    });
+    if (editingExpense) {
+      onUpdateExpense(editingExpense.id, {
+        category,
+        amount,
+        date,
+        description: description.trim() || undefined
+      });
+      setEditingExpense(null);
+    } else {
+      onAddExpense({
+        category,
+        amount,
+        date,
+        description: description.trim() || undefined
+      });
+    }
 
     // Reset Form
     setDescription('');
@@ -88,7 +119,7 @@ export default function Expenses({ expenses, onAddExpense, onDeleteExpense }: Ex
           <p className="text-zinc-400 text-xs mt-1">Record off-road expenditures like servicing, mobile, and fines.</p>
         </div>
         <button
-          onClick={() => setShowAddForm(true)}
+          onClick={handleOpenAdd}
           id="open-add-expense-modal-btn"
           className="w-12 h-12 bg-cred-neon text-black rounded-full flex items-center justify-center shadow-lg transition-transform hover:scale-105 active:scale-95"
         >
@@ -200,17 +231,25 @@ export default function Expenses({ expenses, onAddExpense, onDeleteExpense }: Ex
                   </div>
                 </div>
 
-                <div className="flex items-center gap-4">
-                  <span className="text-base font-bold font-display text-white">
+                <div className="flex items-center gap-2">
+                  <span className="text-base font-bold font-display text-white mr-2">
                     ₹{exp.amount.toLocaleString('en-IN')}
                   </span>
+                  <button
+                    onClick={() => handleOpenEdit(exp)}
+                    id={`edit-expense-${exp.id}`}
+                    aria-label="Edit log"
+                    className="w-8 h-8 rounded-full bg-zinc-950 border border-zinc-900/60 flex items-center justify-center text-zinc-500 hover:text-cred-neon hover:border-emerald-950 transition-colors"
+                  >
+                    <Edit2 className="w-3.5 h-3.5" />
+                  </button>
                   <button
                     onClick={() => onDeleteExpense(exp.id)}
                     id={`delete-expense-${exp.id}`}
                     aria-label="Delete log"
                     className="w-8 h-8 rounded-full bg-zinc-950 border border-zinc-900/60 flex items-center justify-center text-zinc-500 hover:text-red-400 hover:border-red-950 transition-colors"
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>
               </div>
@@ -232,7 +271,9 @@ export default function Expenses({ expenses, onAddExpense, onDeleteExpense }: Ex
               <div className="flex justify-between items-start mb-6">
                 <div>
                   <span className="text-zinc-500 font-mono text-xs uppercase tracking-wider">OFF-ROAD LEDGER LOG</span>
-                  <h3 className="text-xl font-bold font-display text-white mt-0.5">Record Custom Expense</h3>
+                  <h3 className="text-xl font-bold font-display text-white mt-0.5">
+                    {editingExpense ? 'Modify Expense Detail' : 'Record Custom Expense'}
+                  </h3>
                 </div>
                 <button
                   onClick={() => setShowAddForm(false)}
@@ -317,7 +358,7 @@ export default function Expenses({ expenses, onAddExpense, onDeleteExpense }: Ex
                   id="save-expense-btn"
                   className="w-full bg-white text-black font-display font-bold py-3.5 rounded-full hover:bg-zinc-200 transition-colors mt-4"
                 >
-                  Record to Ledger
+                  {editingExpense ? 'Save Modified Expense' : 'Record to Ledger'}
                 </button>
               </form>
             </motion.div>

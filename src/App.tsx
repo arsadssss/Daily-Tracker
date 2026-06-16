@@ -66,7 +66,10 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newEntry)
       });
-      if (!response.ok) throw new Error("Failed to store entry in PostgreSQL");
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error || "Failed to store entry in PostgreSQL");
+      }
       const savedRow = await response.json();
       setEntries((prev) => [savedRow, ...prev]);
     } catch (err: any) {
@@ -81,7 +84,10 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newExpense)
       });
-      if (!response.ok) throw new Error("Failed to write spend to database");
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error || "Failed to write spend to database");
+      }
       const savedRow = await response.json();
       setExpenses((prev) => [savedRow, ...prev]);
     } catch (err: any) {
@@ -94,8 +100,62 @@ export default function App() {
       const response = await fetch(`/api/expenses/${id}`, {
         method: 'DELETE'
       });
-      if (!response.ok) throw new Error("Failed to remove item");
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error || "Failed to remove item");
+      }
       setExpenses((prev) => prev.filter((item) => item.id !== id));
+    } catch (err: any) {
+      alert(`Database Error: ${err.message}`);
+    }
+  };
+
+  const handleDeleteEntry = async (id: string) => {
+    try {
+      const response = await fetch(`/api/daily_entries/${id}`, {
+        method: 'DELETE'
+      });
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error || "Failed to remove entry");
+      }
+      setEntries((prev) => prev.filter((item) => item.id !== id));
+    } catch (err: any) {
+      alert(`Database Error: ${err.message}`);
+    }
+  };
+
+  const handleUpdateEntry = async (id: string, updatedEntry: Partial<DailyEntry>) => {
+    try {
+      const response = await fetch(`/api/daily_entries/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedEntry)
+      });
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error || "Failed to edit entry");
+      }
+      const savedRow = await response.json();
+      setEntries((prev) => prev.map((item) => item.id === id ? { ...item, ...savedRow, id: String(savedRow.id) } : item));
+    } catch (err: any) {
+      alert(`Database Error: ${err.message}`);
+    }
+  };
+
+  const handleUpdateExpense = async (id: string, updatedExpense: Partial<Expense>) => {
+    try {
+      const response = await fetch(`/api/expenses/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedExpense)
+      });
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error || "Failed to edit expense");
+      }
+      const savedRow = await response.json();
+      setExpenses((prev) => prev.map((item) => item.id === id ? { ...item, ...savedRow, id: String(savedRow.id) } : item));
     } catch (err: any) {
       alert(`Database Error: ${err.message}`);
     }
@@ -108,7 +168,10 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newEMI)
       });
-      if (!response.ok) throw new Error("Failed to save loan info");
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error || "Failed to save loan info");
+      }
       const savedRow = await response.json();
       setEmis((prev) => [...prev, savedRow]);
     } catch (err: any) {
@@ -121,7 +184,10 @@ export default function App() {
       const response = await fetch(`/api/emi/${id}`, {
         method: 'DELETE'
       });
-      if (!response.ok) throw new Error("Failed to remove loan installment tracker");
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error || "Failed to remove loan installment tracker");
+      }
       setEmis((prev) => prev.filter((item) => item.id !== id));
     } catch (err: any) {
       alert(`Database Error: ${err.message}`);
@@ -133,7 +199,10 @@ export default function App() {
       const response = await fetch(`/api/emi/${id}/toggle`, {
         method: 'POST'
       });
-      if (!response.ok) throw new Error("Failed to toggle status");
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error || "Failed to toggle status");
+      }
       const updatedRow = await response.json();
       setEmis((prev) => prev.map((item) => item.id === id ? updatedRow : item));
     } catch (err: any) {
@@ -146,7 +215,10 @@ export default function App() {
       const response = await fetch(`/api/emi/${id}/pay`, {
         method: 'POST'
       });
-      if (!response.ok) throw new Error("Failed to update tenure cleared");
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error || "Failed to update tenure cleared");
+      }
       const updatedRow = await response.json();
       setEmis((prev) => prev.map((item) => item.id === id ? updatedRow : item));
     } catch (err: any) {
@@ -161,7 +233,10 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updatedEMI)
       });
-      if (!response.ok) throw new Error("Failed to edit loan info");
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error || "Failed to edit loan info");
+      }
       const savedRow = await response.json();
       setEmis((prev) => prev.map((item) => item.id === id ? { ...item, ...savedRow, id: String(savedRow.id) } : item));
     } catch (err: any) {
@@ -176,7 +251,10 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updatedProfile)
       });
-      if (!response.ok) throw new Error("Failed to update config");
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error || "Failed to update config");
+      }
       const updatedUser = await response.json();
       setProfile(updatedUser);
     } catch (err: any) {
@@ -189,7 +267,10 @@ export default function App() {
       const response = await fetch('/api/reset', {
         method: 'POST'
       });
-      if (!response.ok) throw new Error("Failed to clean datasets");
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error || "Failed to clean datasets");
+      }
       const clearedStates = await response.json();
       setProfile(clearedStates.profile);
       setEntries(clearedStates.entries);
@@ -237,6 +318,8 @@ export default function App() {
             expenses={expenses} 
             emis={emis} 
             profile={profile} 
+            onDeleteEntry={handleDeleteEntry}
+            onUpdateEntry={handleUpdateEntry}
           />
         );
       case 'calendar':
@@ -262,6 +345,7 @@ export default function App() {
             expenses={expenses} 
             onAddExpense={handleAddExpense} 
             onDeleteExpense={handleDeleteExpense} 
+            onUpdateExpense={handleUpdateExpense}
           />
         );
       case 'emi':
@@ -301,6 +385,8 @@ export default function App() {
             expenses={expenses} 
             emis={emis} 
             profile={profile} 
+            onDeleteEntry={handleDeleteEntry}
+            onUpdateEntry={handleUpdateEntry}
           />
         );
     }
