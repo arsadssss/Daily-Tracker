@@ -1,0 +1,62 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Plus Jakarta Sans", "Inter", system-ui, sans-serif;
+  --font-display: "Space Grotesk", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+
+  --color-cred-pure: #000000;
+  --color-cred-bg: #0d0d0d;
+  --color-cred-gray: #161616;
+  --color-cred-card: #1f1f1f;
+  --color-cred-border: #2a2a2a;
+  --color-cred-neon: #f97316; /* Premium sophisticated orange accent */
+  --color-cred-gold: #f4c430; /* Gold accents */
+  --color-cred-accent: #ff6b00; /* Rich orange glow */
+  --color-cred-alert: #ff3344; /* High visibility red */
+  --color-cred-blue: #3b82f6; /* Sophisticated tech blue */
+}
+
+/* Custom aesthetic glow utilities and styling rules */
+@layer base {
+  body {
+    background-color: #050505;
+    color: #f8fafc;
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    font-size: 15px;
+    overflow-x: hidden;
+  }
+
+  /* Hide default scrollbars for native app touch-feel */
+  ::-webkit-scrollbar {
+    width: 0px;
+    height: 0px;
+  }
+}
+
+/* Glassmorphism card utility */
+.cred-glass {
+  background: rgba(18, 18, 18, 0.75);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.cred-glow-green {
+  box-shadow: 0 0 20px rgba(249, 115, 22, 0.15);
+}
+
+.cred-glow-gold {
+  box-shadow: 0 0 20px rgba(244, 196, 48, 0.15);
+}
+
+.cred-glow-red {
+  box-shadow: 0 0 20px rgba(255, 51, 68, 0.15);
+}
+
+/* Custom premium badge border */
+.neon-border-gradient {
+  background: linear-gradient(90deg, #f97316, #f4c430, #3b82f6);
+  padding: 1px;
+}
