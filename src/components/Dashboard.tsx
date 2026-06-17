@@ -141,6 +141,11 @@ export default function Dashboard({
   const activeEMIs = emis.filter(e => e.active);
   const totalEMIObligation = activeEMIs.reduce((sum, e) => sum + e.emiAmount, 0);
 
+  // EMI, commitments, borrowed money paid and outstanding metrics
+  const totalEmiCommitmentsPaid = emis.reduce((sum, e) => sum + (e.emiAmount * e.paidMonths), 0);
+  const totalEmiRemainingToPay = emis.reduce((sum, e) => sum + Math.max(0, e.totalAmount - (e.emiAmount * e.paidMonths)), 0);
+  const netSavings = totalEarnings - totalExpenses - totalEmiCommitmentsPaid;
+
   // Focus Date Resolution (Today 16-Jun-2026 vs Latest Logged)
   const todayStr = "2026-06-16";
   const sortedEntries = [...entries].sort((a, b) => b.date.localeCompare(a.date));
@@ -470,6 +475,101 @@ export default function Dashboard({
             </div>
           </div>
 
+        </div>
+      </div>
+
+      {/* LEDGER & SAVINGS DEEP-DIVE STATEMENTS */}
+      <div className="mb-6 space-y-4">
+        <h3 className="text-xs font-mono tracking-widest text-zinc-500 uppercase">LEDGER & SAVINGS COCKPIT</h3>
+        
+        {/* Savings Balance Display Box */}
+        <div id="savings-balance-summary-card" className="bg-zinc-950/80 border border-zinc-800 rounded-3xl p-5 shadow-[0_12px_40px_rgba(0,0,0,0.8)] relative overflow-hidden space-y-4">
+          <div className="absolute top-0 right-0 w-40 h-40 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none" />
+          
+          <div>
+            <span className="text-[10px] text-zinc-500 font-mono tracking-wider uppercase block">CURRENT NET SAVINGS BALANCE</span>
+            <div className="flex items-baseline gap-2 mt-1">
+              <span className={`text-3xl font-black font-display tracking-tight ${netSavings >= 0 ? 'text-cred-neon' : 'text-red-500'}`}>
+                ₹{netSavings.toLocaleString('en-IN')}
+              </span>
+              <span className="text-xs text-zinc-400">Net Investible Surplus</span>
+            </div>
+            <p className="text-[11px] text-zinc-500 mt-1.5 leading-relaxed">
+              Calculated as Gross Rider Earnings (₹{totalEarnings.toLocaleString('en-IN')}) minus fuel & other expenses (₹{totalExpenses.toLocaleString('en-IN')}) and total EMI, commitments, and borrowed money paid so far (₹{totalEmiCommitmentsPaid.toLocaleString('en-IN')}).
+            </p>
+          </div>
+
+          {/* Table Breakdown of Savings */}
+          <div className="border-t border-zinc-900 pt-3.5 space-y-2.5">
+            <div className="flex justify-between items-center text-xs">
+              <span className="text-zinc-500 flex items-center gap-1.5 font-mono text-[10px]">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                (+) GROSS EARNINGS
+              </span>
+              <span className="font-mono text-white font-bold">₹{totalEarnings.toLocaleString('en-IN')}</span>
+            </div>
+
+            <div className="flex justify-between items-center text-xs">
+              <span className="text-zinc-500 flex items-center gap-1.5 font-mono text-[10px]">
+                <span className="w-1.5 h-1.5 rounded-full bg-orange-450" />
+                (-) TOTAL EXPENSES (PETROL & LEDGER)
+              </span>
+              <span className="font-mono text-zinc-300">₹{totalExpenses.toLocaleString('en-IN')}</span>
+            </div>
+
+            <div className="flex justify-between items-center text-xs">
+              <span className="text-zinc-500 flex items-center gap-1.5 font-mono text-[10px]">
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />
+                (-) OBLIGATIONS & BORROWED MONEY PAID
+              </span>
+              <span className="font-mono text-zinc-300">₹{totalEmiCommitmentsPaid.toLocaleString('en-IN')}</span>
+            </div>
+          </div>
+
+          {/* Savings progress indication */}
+          {totalEarnings > 0 && (
+            <div className="pt-2 border-t border-zinc-900/60">
+              <div className="w-full bg-zinc-900 h-1.5 rounded-full overflow-hidden">
+                <div 
+                  className="bg-cred-neon h-full rounded-full"
+                  style={{ width: `${Math.max(0, Math.min(100, Math.round((netSavings / totalEarnings) * 100)))}%` }}
+                />
+              </div>
+              <div className="flex justify-between text-[9px] font-mono text-zinc-550 mt-1.5">
+                <span>Savings Retention Ratio</span>
+                <span className="text-zinc-400">{Math.round((netSavings / totalEarnings) * 100)}% of total earnings</span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Total Remaining EMIs / Commitments Card */}
+        <div id="emi-debt-remaining-card" className="bg-zinc-950/40 border border-zinc-850 rounded-3xl p-5 relative overflow-hidden space-y-4">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-full blur-2xl pointer-events-none" />
+          
+          <div>
+            <span className="text-[10px] text-zinc-500 font-mono tracking-wider uppercase block">TOTAL REMAINING EMI & CHANNELS OUTSTANDING</span>
+            <div className="flex items-baseline gap-2 mt-1">
+              <span className="text-2xl font-black font-display tracking-tight text-white">
+                ₹{totalEmiRemainingToPay.toLocaleString('en-IN')}
+              </span>
+              <span className="text-xs text-zinc-400">Left to fully close</span>
+            </div>
+            <p className="text-[11px] text-zinc-500 mt-1.5 leading-relaxed">
+              Sum of the outstanding balance across all your registered EMIs, credit card borrowings, and commitments (Total Principal minus Paid installments).
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 pt-3 border-t border-zinc-900/60 text-xs">
+            <div>
+              <span className="text-zinc-500 text-[9px] block font-mono">EMI LOANS MET SO FAR</span>
+              <span className="font-mono font-bold text-emerald-400">₹{totalEmiCommitmentsPaid.toLocaleString('en-IN')} Paid</span>
+            </div>
+            <div>
+              <span className="text-zinc-500 text-[9px] block font-mono">TOTAL EMI PIPELINES</span>
+              <span className="font-mono font-semibold text-zinc-300">{emis.length} Accounts Listed</span>
+            </div>
+          </div>
         </div>
       </div>
 

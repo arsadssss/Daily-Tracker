@@ -15,9 +15,25 @@ import {
   BarChart,
   LineChart,
   DollarSign,
-  AlertCircle
+  AlertCircle,
+  Wallet,
+  CreditCard,
+  ArrowRight,
+  Calculator,
+  Calendar,
+  Check
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { 
+  BarChart as RechartsBarChart, 
+  Bar, 
+  XAxis, 
+  YAxis, 
+  Tooltip as RechartsTooltip, 
+  ResponsiveContainer, 
+  Cell,
+  CartesianGrid
+} from 'recharts';
 
 interface AnalyticsProps {
   entries: DailyEntry[];
@@ -27,18 +43,53 @@ interface AnalyticsProps {
 }
 
 export default function Analytics({ entries, expenses, emis, profile }: AnalyticsProps) {
-  const [activeTab, setActiveTab] = useState<'trends' | 'breakdowns' | 'debt_attendance'>('trends');
+  const [activeTab, setActiveTab] = useState<'trends' | 'breakdowns' | 'cash_flow' | 'debt_attendance'>('trends');
+
+  // Interactive Cash Flow Simulator States
+  // Setup defaults matching user example: Last payment of 20,000 on June 14, earned 2,200 & 1,800 on June 15 & 16, next due 3,000 on June 20.
+  const [lastPaymentDate, setLastPaymentDate] = useState<string>('2026-06-14');
+  const [lastPaymentAmount, setLastPaymentAmount] = useState<number>(20000);
+  const [nextPaymentDate, setNextPaymentDate] = useState<string>('2026-06-20');
+  const [nextPaymentAmount, setNextPaymentAmount] = useState<number>(3000);
 
   // Basic checks
   const hasData = entries.length > 0;
 
   // Real data calculations
   const totalEarnings = entries.reduce((sum, item) => sum + item.earnings, 0);
+  const totalOnlineEarnings = entries.reduce((sum, item) => sum + (item.onlinePayment || 0), 0);
+  const totalCashEarnings = entries.reduce((sum, item) => sum + (item.cashPayment || 0), 0);
+
   const totalFuel = entries.reduce((sum, item) => sum + item.fuelExpense, 0);
   const totalFood = entries.reduce((sum, item) => sum + item.foodTeaExpense, 0);
   const totalOther = entries.reduce((sum, item) => sum + item.otherExpense, 0);
   const totalManualExpenses = expenses.reduce((sum, item) => sum + item.amount, 0);
   const totalExpenses = totalFuel + totalFood + totalOther + totalManualExpenses;
+
+  // Recharts Spending Distribution Calculation
+  const fuelExpensesFromLogs = entries.reduce((sum, item) => sum + item.fuelExpense, 0);
+  const fuelExpensesManual = expenses.filter(e => e.category === 'Fuel').reduce((sum, e) => sum + e.amount, 0);
+  const totalFuelSpending = fuelExpensesFromLogs + fuelExpensesManual;
+
+  const foodExpensesFromLogs = entries.reduce((sum, item) => sum + item.foodTeaExpense, 0);
+  const foodExpensesManual = expenses.filter(e => e.category === 'Food & Tea').reduce((sum, e) => sum + e.amount, 0);
+  const totalFoodSpending = foodExpensesFromLogs + foodExpensesManual;
+
+  const totalMaintenanceSpending = expenses.filter(e => e.category === 'Maintenance').reduce((sum, e) => sum + e.amount, 0);
+
+  const tollSpending = expenses.filter(e => e.category === 'Toll / Permit').reduce((sum, e) => sum + e.amount, 0);
+  const mobileSpending = expenses.filter(e => e.category === 'Mobile Recharge').reduce((sum, e) => sum + e.amount, 0);
+  const challanSpending = expenses.filter(e => e.category === 'Challan').reduce((sum, e) => sum + e.amount, 0);
+  const otherExpensesFromLogs = entries.reduce((sum, item) => sum + item.otherExpense, 0);
+  const otherExpensesManual = expenses.filter(e => e.category === 'Other').reduce((sum, e) => sum + e.amount, 0);
+  const totalOtherSpending = tollSpending + mobileSpending + challanSpending + otherExpensesFromLogs + otherExpensesManual;
+
+  const rechartsSpendingData = [
+    { category: 'Fuel', amount: totalFuelSpending, color: '#f59e0b' },
+    { category: 'Food', amount: totalFoodSpending, color: '#f97316' },
+    { category: 'Maintenance', amount: totalMaintenanceSpending, color: '#3b82f6' },
+    { category: 'Other', amount: totalOtherSpending, color: '#a855f7' }
+  ];
 
   // Average Daily Income & Expenses
   const numDays = entries.length;
@@ -125,7 +176,7 @@ export default function Analytics({ entries, expenses, emis, profile }: Analytic
       </div>
 
       {/* Tabs */}
-      <div className="grid grid-cols-3 gap-1.5 p-1 bg-black/40 rounded-2xl border border-zinc-850 mb-5 text-[10px] uppercase font-bold text-center">
+      <div className="grid grid-cols-4 gap-1 p-1 bg-black/40 rounded-2xl border border-zinc-850 mb-5 text-[9px] uppercase font-bold text-center">
         <button
           onClick={() => setActiveTab('trends')}
           id="btn-analytics-tab-trends"
@@ -133,7 +184,7 @@ export default function Analytics({ entries, expenses, emis, profile }: Analytic
             activeTab === 'trends' ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:text-white'
           }`}
         >
-          📈 Income Trends
+          📈 Trends
         </button>
         <button
           onClick={() => setActiveTab('breakdowns')}
@@ -145,13 +196,22 @@ export default function Analytics({ entries, expenses, emis, profile }: Analytic
           🍰 Expenses
         </button>
         <button
+          onClick={() => setActiveTab('cash_flow')}
+          id="btn-analytics-tab-cash-flow"
+          className={`py-2 rounded-xl transition ${
+            activeTab === 'cash_flow' ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:text-white'
+          }`}
+        >
+          💵 Cash Flow
+        </button>
+        <button
           onClick={() => setActiveTab('debt_attendance')}
           id="btn-analytics-tab-debt"
           className={`py-2 rounded-xl transition ${
             activeTab === 'debt_attendance' ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:text-white'
           }`}
         >
-          🎯 Goals & Debt
+          🎯 Goals
         </button>
       </div>
 
@@ -363,6 +423,309 @@ export default function Analytics({ entries, expenses, emis, profile }: Analytic
                     </div>
                   </div>
                 )}
+              </div>
+
+              {/* Recharts Spending Category Bar Chart */}
+              <div className="cred-glass p-5 rounded-3xl border border-white/5 space-y-4">
+                <div>
+                  <h3 className="text-sm font-bold text-white font-sans flex items-center gap-1.5 mb-1">
+                    <BarChart className="w-4 h-4 text-emerald-400" /> Recharts Category Distribution
+                  </h3>
+                  <span className="text-[10px] text-zinc-500 font-mono block">
+                    BAR CHART RENDERED SPENDING CHANNELS IN REAL-TIME
+                  </span>
+                </div>
+
+                {totalExpenses === 0 ? (
+                  <div className="text-zinc-500 text-xs py-10 text-center font-mono">
+                    Add log entries or standalone ledger expenses to view category chart.
+                  </div>
+                ) : (
+                  <>
+                    <div className="h-56 mt-2 relative">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <RechartsBarChart
+                          data={rechartsSpendingData}
+                          margin={{ top: 15, right: 10, left: -25, bottom: 5 }}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" stroke="#1f1f23" vertical={false} />
+                          <XAxis 
+                            dataKey="category" 
+                            stroke="#52525b" 
+                            fontSize={10} 
+                            tickLine={false}
+                            axisLine={false}
+                          />
+                          <YAxis 
+                            stroke="#52525b" 
+                            fontSize={10} 
+                            tickLine={false}
+                            axisLine={false}
+                            tickFormatter={(val) => `₹${val}`}
+                          />
+                          <RechartsTooltip
+                            cursor={{ fill: 'rgba(255, 255, 255, 0.02)' }}
+                            contentStyle={{
+                              backgroundColor: '#09090b',
+                              border: '1px solid #27272a',
+                              borderRadius: '12px',
+                              fontSize: '11px',
+                              color: '#fff',
+                              fontFamily: 'monospace'
+                            }}
+                            formatter={(value: any) => [`₹${value.toLocaleString('en-IN')}`, 'Spent']}
+                          />
+                          <Bar 
+                            dataKey="amount" 
+                            radius={[6, 6, 0, 0]}
+                            maxBarSize={32}
+                          >
+                            {rechartsSpendingData.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={entry.color} />
+                            ))}
+                          </Bar>
+                        </RechartsBarChart>
+                      </ResponsiveContainer>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-xs pt-1">
+                      {rechartsSpendingData.map((item, index) => (
+                        <div 
+                          key={index} 
+                          className="p-2.5 rounded-xl bg-zinc-900/50 border border-zinc-850/80 flex items-center justify-between"
+                        >
+                          <div className="flex items-center gap-1.5">
+                            <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: item.color }} />
+                            <span className="text-zinc-400 font-sans text-[11px]">{item.category}</span>
+                          </div>
+                          <span className="font-mono text-white font-bold text-[11px]">₹{item.amount.toLocaleString('en-IN')}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            </motion.div>
+          )}
+
+          {activeTab === 'cash_flow' && (
+            <motion.div
+              key="cash_flow"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="space-y-4"
+            >
+              {/* Online vs Cash Liquidity split card */}
+              <div className="cred-glass p-5 rounded-3xl border border-white/5 space-y-4">
+                <div>
+                  <h3 className="text-sm font-bold text-white font-sans flex items-center gap-1.5 mb-1">
+                    <Wallet className="w-4 h-4 text-emerald-400" /> Total Liquid Earnings Split
+                  </h3>
+                  <span className="text-[10px] text-zinc-500 font-mono block">
+                    CUMULATIVE EARNED POOL SEGREGATED BY INCOMING CHANNELS
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3.5">
+                  <div className="bg-zinc-950/60 border border-zinc-850 p-4 rounded-2xl relative overflow-hidden">
+                    <span className="text-[9px] font-mono text-zinc-500 block">ONLINE GPAY/UPI PAYMENTS</span>
+                    <span className="text-2xl font-black font-display text-emerald-400 block mt-1">
+                      ₹{totalOnlineEarnings.toLocaleString('en-IN')}
+                    </span>
+                    <span className="text-[9px] text-zinc-550 block mt-1.5 font-mono">
+                      {totalEarnings > 0 ? Math.round((totalOnlineEarnings / totalEarnings) * 100) : 0}% of gross ledger
+                    </span>
+                  </div>
+
+                  <div className="bg-zinc-950/60 border border-zinc-850 p-4 rounded-2xl relative overflow-hidden">
+                    <span className="text-[9px] font-mono text-zinc-500 block">PHYSICAL CASH PAYMENTS</span>
+                    <span className="text-2xl font-black font-display text-amber-500 block mt-1">
+                      ₹{totalCashEarnings.toLocaleString('en-IN')}
+                    </span>
+                    <span className="text-[9px] text-zinc-550 block mt-1.5 font-mono">
+                      {totalEarnings > 0 ? Math.round((totalCashEarnings / totalEarnings) * 100) : 0}% of gross ledger
+                    </span>
+                  </div>
+                </div>
+
+                {/* Progress bar split */}
+                {totalEarnings > 0 && (
+                  <div className="space-y-1">
+                    <div className="w-full bg-amber-500 h-2.5 rounded-full flex overflow-hidden">
+                      <div 
+                        className="bg-emerald-400 h-full transition-all" 
+                        style={{ width: `${(totalOnlineEarnings / totalEarnings) * 100}%` }}
+                      />
+                    </div>
+                    <div className="flex justify-between text-[9px] font-mono text-zinc-550 px-0.5">
+                      <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 bg-emerald-400 rounded-full"/> Online</span>
+                      <span className="flex items-center gap-1">Cash <span className="w-1.5 h-1.5 bg-amber-500 rounded-full"/></span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* POST-PAYMENT RUNWAY SIMULATOR */}
+              <div className="cred-glass p-5 rounded-3xl border border-white/5 space-y-4">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h3 className="text-sm font-bold text-white font-sans flex items-center gap-1.5 mb-1">
+                      <Calculator className="w-4 h-4 text-cred-gold" /> Post-Payment Surplus Runway
+                    </h3>
+                    <span className="text-[10px] text-zinc-500 font-mono block">
+                      DYNAMIC ACCUMULATION SINCE LAST MAJOR SETTLEMENT
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-mono font-bold text-cred-neon bg-emerald-500/10 px-2 py-0.5 rounded-lg border border-emerald-500/15">
+                    Live Simulator
+                  </span>
+                </div>
+
+                {/* Simulation inputs split */}
+                <div className="grid grid-cols-2 gap-3 bg-zinc-950/50 p-3.5 rounded-2xl border border-zinc-900 text-xs text-white">
+                  <div>
+                    <label className="block text-[9px] font-mono text-zinc-500 uppercase tracking-wider mb-1">Last Pay Date</label>
+                    <input 
+                      type="date"
+                      value={lastPaymentDate}
+                      onChange={(e) => setLastPaymentDate(e.target.value)}
+                      className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-2.5 py-1.5 text-xs text-zinc-200 focus:outline-none focus:border-cred-gold font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[9px] font-mono text-zinc-500 uppercase tracking-wider mb-1">Paid Already (₹)</label>
+                    <input 
+                      type="number"
+                      value={lastPaymentAmount}
+                      onChange={(e) => setLastPaymentAmount(Number(e.target.value))}
+                      className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-2.5 py-1.5 text-xs text-zinc-200 focus:outline-none focus:border-cred-gold font-mono"
+                    />
+                  </div>
+
+                  <div className="mt-1">
+                    <label className="block text-[9px] font-mono text-zinc-500 uppercase tracking-wider mb-1">Next Due Date</label>
+                    <input 
+                      type="date"
+                      value={nextPaymentDate}
+                      onChange={(e) => setNextPaymentDate(e.target.value)}
+                      className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-2.5 py-1.5 text-xs text-zinc-200 focus:outline-none focus:border-cred-gold font-mono"
+                    />
+                  </div>
+                  <div className="mt-1">
+                    <label className="block text-[9px] font-mono text-zinc-500 uppercase tracking-wider mb-1">Upcoming EMI (₹)</label>
+                    <input 
+                      type="number"
+                      value={nextPaymentAmount}
+                      onChange={(e) => setNextPaymentAmount(Number(e.target.value))}
+                      className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-2.5 py-1.5 text-xs text-zinc-200 focus:outline-none focus:border-cred-gold font-mono"
+                    />
+                  </div>
+                </div>
+
+                {/* Calculation math outputs */}
+                {(() => {
+                  // Filter daily entries logged strictly after lastPaymentDate
+                  const postPaymentEntries = entries.filter(e => e.date > lastPaymentDate);
+                  const accumulatedEarnings = postPaymentEntries.reduce((sum, item) => sum + item.earnings, 0);
+                  const accumulatedOnline = postPaymentEntries.reduce((sum, item) => sum + (item.onlinePayment || 0), 0);
+                  const accumulatedCash = postPaymentEntries.reduce((sum, item) => sum + (item.cashPayment || 0), 0);
+                  const accumulatedExpenses = postPaymentEntries.reduce((sum, item) => sum + item.fuelExpense + item.foodTeaExpense + item.otherExpense, 0);
+                  
+                  const activeSurplusInHand = accumulatedEarnings - accumulatedExpenses;
+                  const projectedBalanceAfterEmi = activeSurplusInHand - nextPaymentAmount;
+
+                  return (
+                    <div className="space-y-4">
+                      {/* Interactive breakdown panel */}
+                      <div className="bg-zinc-900/40 border border-zinc-850/80 rounded-2xl p-4 space-y-3.5">
+                        <div className="flex justify-between items-center text-xs pb-2 border-b border-zinc-900">
+                          <span className="text-zinc-400 font-medium">Accumulation Period:</span>
+                          <span className="font-mono text-zinc-300 font-semibold">
+                            {lastPaymentDate} <ArrowRight className="w-3.5 h-3.5 text-zinc-500 inline mx-1 align-middle" /> Present
+                          </span>
+                        </div>
+
+                        {/* List of post-payment logs */}
+                        <div className="space-y-1.5 max-h-28 overflow-y-auto pr-1">
+                          {postPaymentEntries.length === 0 ? (
+                            <p className="text-[10px] text-zinc-550 font-mono text-center py-2">
+                              No driver earnings logged since {lastPaymentDate}. Add entries to simulate!
+                            </p>
+                          ) : (
+                            postPaymentEntries.map((item, index) => (
+                              <div key={index} className="flex justify-between items-center text-[11px] font-mono hover:bg-zinc-900/60 p-1.5 rounded-lg">
+                                <span className="text-zinc-500 font-sans flex items-center gap-1">
+                                  <Calendar className="w-3 h-3 text-zinc-640" />
+                                  {new Date(item.date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })}
+                                </span>
+                                <div className="text-right space-y-0.5">
+                                  <span className="text-white font-bold">₹{item.earnings.toLocaleString('en-IN')}</span>
+                                  <span className="text-[9px] text-zinc-550 block">UPI: ₹{item.onlinePayment} | Cash: ₹{item.cashPayment}</span>
+                                </div>
+                              </div>
+                            ))
+                          )}
+                        </div>
+
+                        {/* Formula summary */}
+                        <div className="space-y-2.5 pt-2 border-t border-zinc-900">
+                          <div className="flex justify-between text-xs">
+                            <span className="text-zinc-500 font-mono text-[10px]">TOTAL EARNED POST-PAYMENT:</span>
+                            <span className="font-mono text-white font-bold">₹{accumulatedEarnings.toLocaleString('en-IN')}</span>
+                          </div>
+
+                          <div className="flex justify-between text-xs">
+                            <span className="text-zinc-500 font-mono text-[10px]">(-) ROAD EXPENSES INCURRED:</span>
+                            <span className="font-mono text-zinc-400">₹{accumulatedExpenses.toLocaleString('en-IN')}</span>
+                          </div>
+
+                          <div className="flex justify-between text-xs pt-1.5 border-t border-zinc-900/50">
+                            <span className="text-zinc-400 font-mono text-[10px] font-bold">NET ACCUMULATED SURPLUS (IN HAND):</span>
+                            <span className="font-mono text-emerald-400 font-extrabold">₹{activeSurplusInHand.toLocaleString('en-IN')}</span>
+                          </div>
+
+                          <div className="flex justify-between text-xs">
+                            <span className="text-zinc-500 font-mono text-[10px]">UPCOMING EMI DUE ({new Date(nextPaymentDate).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })}):</span>
+                            <span className="font-mono text-rose-400 font-bold">₹{nextPaymentAmount.toLocaleString('en-IN')}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Final remaining projection banner */}
+                      <div className={`p-4 rounded-2xl border ${
+                        projectedBalanceAfterEmi >= 0 
+                          ? 'bg-emerald-950/25 border-emerald-900/50 text-emerald-400 font-semibold' 
+                          : 'bg-rose-950/25 border-rose-900/50 text-rose-400 font-semibold'
+                      } flex items-center justify-between`}>
+                        <div>
+                          <span className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest block">PROJECTED IN-HAND BAL ON {new Date(nextPaymentDate).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })}</span>
+                          <span className="text-[11px] text-zinc-450 font-sans mt-0.5 block leading-tight font-normal">
+                            {projectedBalanceAfterEmi >= 0 
+                              ? 'Remaining surplus balance in hand' 
+                              : 'Projected net cash deficit for upcoming commitment'}
+                          </span>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-2xl font-black font-display tracking-tight block">
+                            ₹{projectedBalanceAfterEmi.toLocaleString('en-IN')}
+                          </span>
+                          <span className="text-[9px] font-mono text-zinc-500">Post-Commitment Liquidity</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Informative Help Guide Card */}
+                <div className="bg-zinc-900/25 p-3 rounded-2xl border border-zinc-850 text-[11px] text-zinc-500 space-y-1.5">
+                  <div className="flex items-center gap-1 font-bold text-zinc-400">
+                    <HelpCircle className="w-3.5 h-3.5 text-zinc-500" /> Understanding Runway Calculations
+                  </div>
+                  <p className="leading-relaxed">
+                    This simulator runs live ledger calculations. If you paid off your primary obligations (e.g., ₹20,000) and then earned new money (e.g., ₹2,200 and ₹1,800 on subsequent days), the net accumulation represents your in-hand liquidity. Subtracting the upcoming EMI (e.g. ₹3,000 due on 20 June) yields your final remaining cash-in-hand buffer!
+                  </p>
+                </div>
               </div>
             </motion.div>
           )}
