@@ -6,7 +6,7 @@ services:
     name: rider-ledger-app
     runtime: node
     plan: free # Can be upgraded, free plan allows scale-to-zero which is great for personal apps
-    buildCommand: npm run build
+    buildCommand: npm install && npm run build
     startCommand: npm run start
     envVars:
       - key: NODE_ENV
