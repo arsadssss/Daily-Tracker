@@ -147,7 +147,13 @@ export default function Dashboard({
   const netSavings = totalEarnings - totalExpenses - totalEmiCommitmentsPaid;
 
   // Focus Date Resolution (Today 16-Jun-2026 vs Latest Logged)
-  const todayStr = "2026-06-16";
+  const todayStr = (() => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  })();
   const sortedEntries = [...entries].sort((a, b) => b.date.localeCompare(a.date));
   const latestLoggedDateStr = sortedEntries.length > 0 ? sortedEntries[0].date : todayStr;
 

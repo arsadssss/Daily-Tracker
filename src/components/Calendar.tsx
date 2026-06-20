@@ -48,7 +48,13 @@ export default function Calendar({ entries, workCalendar, profile, onRefresh }: 
   const [errorText, setErrorText] = useState<string | null>(null);
 
   // Constants
-  const TODAY_STR = "2026-06-16";
+  const TODAY_STR = (() => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  })();
   const MONTH_NAMES = [
     "January", "February", "March", "April", "May", "June", 
     "July", "August", "September", "October", "November", "December"
