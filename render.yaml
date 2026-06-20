@@ -1,0 +1,16 @@
+# Render.com Blueprint configuration for Rider Ledger & Financial Dashboard
+# This file lets you deploy to Render.com in one click with the database URL preset.
+
+services:
+  - type: web
+    name: rider-ledger-app
+    runtime: node
+    plan: free # Can be upgraded, free plan allows scale-to-zero which is great for personal apps
+    buildCommand: npm run build
+    startCommand: npm run start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+        placeholder: "Enter your Neon PostgreSQL Database URL (e.g., postgresql://username:password@ep-xxxx.neon.tech/neondb)"

@@ -7,7 +7,7 @@ import * as schema from "./src/db/schema.js";
 import { eq, and } from "drizzle-orm";
 
 export const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
 app.use(express.json());
 
